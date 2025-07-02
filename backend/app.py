@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 import requests
 import os
 from dotenv import load_dotenv
@@ -170,3 +170,59 @@ def get_token():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+# gets mood and activity from query params
+# returns 5 recommended tracks based on mood and activity
+@app.route('/recommend')
+def recommend_tracks():
+    print("Received request for recommendations bwehwehehweuhawidh")
+    mood = request.args.get('mood')
+    activity = request.args.get('activity')
+
+    if not mood or not activity:
+        return jsonify({"error": "Please provide both 'mood' and 'activity' parameters."}), 400
+
+    targets = build_feature_targets(mood, activity)
+
+    # get access token
+    auth_response = requests.post(
+        'https://accounts.spotify.com/api/token',
+        data={'grant_type': 'client_credentials'},
+        auth=(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET)
+    )
+    access_token = auth_response.json().get("access_token")
+
+    if not access_token:
+        return jsonify({"error": "Unable to authenticate with Spotify"}), 500
+
+    # call Spotify Recommendations API
+    headers = {"Authorization": f"Bearer {access_token}"}
+    params = {
+        "limit": 5,
+        "seed_genres": "pop",  # Temporary fallback; WORK ON this later
+        **targets
+    }
+
+    rec_response = requests.get(
+        'https://api.spotify.com/v1/recommendations',
+        headers=headers,
+        params=params
+    )
+
+    data = rec_response.json()
+
+    # display results
+    results = []
+    for track in data.get("tracks", []):
+        results.append({
+            "track": track["name"],
+            "artist": track["artists"][0]["name"],
+            "preview": track["preview_url"],
+            "album_art": track["album"]["images"][0]["url"]
+        })
+
+    return jsonify(results)
+
+@app.route('/hello')
+def hello():
+    return "Hello, Flask is working!"
