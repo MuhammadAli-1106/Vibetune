@@ -157,25 +157,11 @@ def build_feature_targets(mood, activity):
 
     return combined
 
-
-@app.route('/test-token')
-def get_token():
-    auth_url = 'https://accounts.spotify.com/api/token'
-    auth_response = requests.post(
-        auth_url,
-        data={'grant_type': 'client_credentials'},
-        auth=(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET)
-    )
-    return jsonify(auth_response.json())
-
-if __name__ == '__main__':
-    app.run(debug=True)
-
 # gets mood and activity from query params
 # returns 5 recommended tracks based on mood and activity
 @app.route('/recommend')
 def recommend_tracks():
-    print("Received request for recommendations bwehwehehweuhawidh")
+
     mood = request.args.get('mood')
     activity = request.args.get('activity')
 
@@ -203,11 +189,27 @@ def recommend_tracks():
         **targets
     }
 
+    #tracing bug
+    print("Requesting Spotify Recommendations...")
+    print("Headers:", headers)
+    print("Params:", params)
+
     rec_response = requests.get(
         'https://api.spotify.com/v1/recommendations',
         headers=headers,
         params=params
     )
+
+    #tracing bug
+    print("Status Code:", rec_response.status_code)
+    print("Response Text:", rec_response.text)
+    print("Access Token:", access_token)
+
+    try:
+        data = rec_response.json()
+    except Exception as e:
+        return jsonify({"error": "Spotify returned invalid JSON", "details": rec_response.text}), 500
+
 
     data = rec_response.json()
 
@@ -223,6 +225,23 @@ def recommend_tracks():
 
     return jsonify(results)
 
+
 @app.route('/hello')
 def hello():
     return "Hello, Flask is working!"
+
+
+@app.route('/test-token')
+def get_token():
+    auth_url = 'https://accounts.spotify.com/api/token'
+    auth_response = requests.post(
+        auth_url,
+        data={'grant_type': 'client_credentials'},
+        auth=(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET)
+    )
+    return jsonify(auth_response.json())
+
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
